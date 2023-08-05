@@ -1,5 +1,6 @@
 function exportToExcel(sheetName, headers, data, options = {}) {
     const {
+        format = 'csv', // Default to CSV
         delimiter = ',',
         includeHeaders = true,
         customFilename = '',
@@ -9,13 +10,12 @@ function exportToExcel(sheetName, headers, data, options = {}) {
         cellComments = {}
     } = options;
 
-    const csvRows = [];
+    const contentRows = [];
     let timestamp = '';
-    let sheetname = sheetName ? sheetName : generateRandomText(6);
+    const sheetname = sheetName || generateRandomText(6);
 
     if (includeHeaders) {
-        const formattedHeaders = headers.map(header => `"${header}"`).join(delimiter);
-        csvRows.push(formattedHeaders);
+        contentRows.push(headers);
     }
 
     data.forEach((row, rowIndex) => {
@@ -28,14 +28,13 @@ function exportToExcel(sheetName, headers, data, options = {}) {
                 } else {
                     return '';
                 }
-            }).join(delimiter);
-            csvRows.push(formattedRow);
+            });
+            contentRows.push(formattedRow);
         }
     });
 
     if (footer.length > 0) {
-        const footerRow = footer.map(cell => `"${cell}"`).join(delimiter);
-        csvRows.push(footerRow);
+        contentRows.push(footer);
     }
 
     if (timeStamp) {
@@ -43,25 +42,47 @@ function exportToExcel(sheetName, headers, data, options = {}) {
     }
 
     const baseFilename = customFilename || sheetname;
-    const fileName = `${baseFilename}${timeStamp ? '_' + timestamp : ''}.csv`;
-    const csvContent = csvRows.join('\n');
+    const fileName = `${baseFilename}${timeStamp ? '_' + timestamp : ''}`;
 
-    // Add cell comments
-    Object.keys(cellComments).forEach(cellKey => {
-        const [row, col] = cellKey.split('_');
-        csvContent += `\n"${cellComments[cellKey]}",${row},${col}`;
-    });
+    if (format === 'csv') {
+        exportToCsv(contentRows, fileName, delimiter);
+    } else if (format === 'xlsx') {
+        exportToXlsx(contentRows, fileName);
+    }
+}
+
+function exportToCsv(data, filename, delimiter) {
+    const csvContent = data.map(row => row.map(cell => `${cell}`).join(delimiter)).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
+    link.setAttribute('download', `${filename}.csv`);
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
+
+function exportToXlsx(data, filename) {
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+
+    const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'blob' });
+
+    const url = URL.createObjectURL(wbout);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}.xlsx`);
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+
 function generateRandomText(length) {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
@@ -71,4 +92,3 @@ function generateRandomText(length) {
     }
     return result;
 }
-
