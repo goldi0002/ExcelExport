@@ -1,4 +1,3 @@
-const XLSX = require('xlsx');
 function exportToExcel(sheetName, headers, data, options = {}) {
     const {
         format = 'csv', // Default to CSV
